@@ -1,0 +1,44 @@
+#!/bin/bash
+
+# Define standard path to the archiver
+ARCHIVER_EXE="C:/Program Files/TiaReleaseArchiver/TiaReleaseArchiver.exe"
+# Fallback path in AppData if not installed in Program Files
+FALLBACK_EXE="$LOCALAPPDATA/TiaReleaseArchiver/TiaReleaseArchiver.exe"
+
+# Select the available executable
+if [ -f "$ARCHIVER_EXE" ]; then
+    EXE_PATH="$ARCHIVER_EXE"
+elif [ -f "$FALLBACK_EXE" ]; then
+    EXE_PATH="$FALLBACK_EXE"
+else
+    echo "--------------------------------------------------------"
+    echo "[GIT HOOK] ERROR: TiaReleaseArchiver.exe is not installed on this machine!"
+    echo "[GIT HOOK] Please run Install.ps1 in the repository root to configure and install it."
+    echo "--------------------------------------------------------"
+    exit 1
+fi
+
+# Read references being pushed
+while read local_ref local_sha remote_ref remote_sha; do
+    if [[ "$local_ref" =~ ^refs/tags/(v[0-9]+\.[0-9]+\.[0-9]+.*) ]]; then
+        TAG_NAME="${BASH_REMATCH[1]}"
+        echo "--------------------------------------------------------"
+        echo "[GIT HOOK] Tag push detected: $TAG_NAME"
+        echo "[GIT HOOK] Running TIA Portal Automated Release Archiver..."
+        echo "--------------------------------------------------------"
+        
+        # Execute the archiver
+        "$EXE_PATH" "$TAG_NAME"
+        STATUS=$?
+        
+        if [ $STATUS -ne 0 ]; then
+            echo "[GIT HOOK] ERROR: Archiver failed with exit code $STATUS. PUSH ABORTED."
+            echo "--------------------------------------------------------"
+            exit 1
+        fi
+        echo "[GIT HOOK] Release archive generated and uploaded successfully."
+        echo "--------------------------------------------------------"
+    fi
+done
+
+exit 0
